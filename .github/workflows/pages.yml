@@ -1,0 +1,40 @@
+name: Publish wedding invitation
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Restore verified invitation files
+        shell: python
+        run: |
+          import base64, hashlib, io, pathlib, zipfile
+          parts = sorted(pathlib.Path('.').glob('payload-*.b64'))
+          assert len(parts) == 9, 'Incomplete invitation package'
+          data = base64.b64decode(''.join(p.read_text() for p in parts))
+          assert hashlib.sha256(data).hexdigest() == '7416263a58c009cebbb85903d07786a35a628b2c7a9e42644cfee9bfd4b1db56', 'Invitation package checksum mismatch'
+          with zipfile.ZipFile(io.BytesIO(data)) as archive:
+              target = pathlib.Path('public').resolve()
+              assert all((target / n).resolve().is_relative_to(target) for n in archive.namelist())
+              archive.extractall(target)
+          assert (target / 'index.html').is_file()
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+      - name: Deploy invitation
+        id: deployment
+        uses: actions/deploy-pages@v4
