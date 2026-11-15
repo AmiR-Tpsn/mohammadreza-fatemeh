@@ -31,6 +31,18 @@ jobs:
               assert all((target / n).resolve().is_relative_to(target) for n in archive.namelist())
               archive.extractall(target)
           assert (target / 'index.html').is_file()
+      - name: Apply optimized mobile invitation
+        shell: python
+        run: |
+          import base64, hashlib, io, pathlib, zipfile
+          parts = sorted(pathlib.Path('.').glob('mobile-fix-*.b64'))
+          assert len(parts) == 3
+          data = base64.b64decode(''.join(p.read_text() for p in parts))
+          assert hashlib.sha256(data).hexdigest() == '1124f85c6e95f61af844548c8f277ac164f0de758230e2de628e4061a6f744b7'
+          with zipfile.ZipFile(io.BytesIO(data)) as archive:
+              target = pathlib.Path('public').resolve()
+              assert all((target / n).resolve().is_relative_to(target) for n in archive.namelist())
+              archive.extractall(target)
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
